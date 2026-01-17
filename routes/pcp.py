@@ -19,6 +19,30 @@ def get_db():
         db.close()
 
 
+# 🔹 POST — CRIA / ATUALIZA CONTEXTO PCP
+@router.post("/context")
+def create_context(
+    data: dict,
+    company: Company = Depends(get_current_company),
+    db: Session = Depends(get_db)
+):
+    context = PCPContext(
+        company_id=company.id,
+        payload=data
+    )
+
+    db.add(context)
+    db.commit()
+    db.refresh(context)
+
+    return {
+        "status": "created",
+        "context_id": context.id,
+        "company": company.name
+    }
+
+
+# 🔹 GET — BUSCA O ÚLTIMO CONTEXTO PCP
 @router.get("/context")
 def get_context(
     company: Company = Depends(get_current_company),
@@ -40,6 +64,7 @@ def get_context(
     return ctx.payload
 
 
+# 🔹 POST — SALVA RESULTADO DO AGENTE PCP
 @router.post("/result")
 def save_result(
     data: dict,
