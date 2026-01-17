@@ -1,13 +1,9 @@
-from sqlalchemy import Column, Integer, JSON, ForeignKey, DateTime, String
+from sqlalchemy import Column, Integer, ForeignKey, JSON
 from core.database import Base
-from datetime import datetime
 
 class PCPResult(Base):
     __tablename__ = "pcp_results"
 
     id = Column(Integer, primary_key=True)
-    company_id = Column(Integer, ForeignKey("companies.id"))
-    run_id = Column(String)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
     result = Column(JSON)
-    agent_version = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)

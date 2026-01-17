@@ -5,5 +5,4 @@ class Company(Base):
     __tablename__ = "companies"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
-    api_key = Column(String, unique=True)
+    name = Column(String, nullable=False)
