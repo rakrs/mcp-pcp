@@ -1,3 +1,5 @@
+from routes.companies import router as companies_router
+
 from fastapi import FastAPI
 from sqlalchemy import text
 
@@ -13,6 +15,8 @@ app = FastAPI(title="MCP Server")
 
 # REGISTRA AS ROTAS
 app.include_router(pcp_router)
+app.include_router(companies_router)
+
 
 # CRIA AS TABELAS NO STARTUP
 Base.metadata.create_all(bind=engine)
