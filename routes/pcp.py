@@ -19,7 +19,7 @@ def get_db():
         db.close()
 
 
-# 🔹 POST — CRIA / ATUALIZA CONTEXTO PCP
+# 🔹 POST — CRIA CONTEXTO PCP
 @router.post("/context")
 def create_context(
     data: dict,
@@ -30,7 +30,6 @@ def create_context(
         company_id=company.id,
         payload=data
     )
-
     db.add(context)
     db.commit()
     db.refresh(context)
@@ -42,7 +41,7 @@ def create_context(
     }
 
 
-# 🔹 GET — BUSCA O ÚLTIMO CONTEXTO PCP
+# 🔹 GET — BUSCA ÚLTIMO CONTEXTO
 @router.get("/context")
 def get_context(
     company: Company = Depends(get_current_company),
@@ -56,25 +55,58 @@ def get_context(
     )
 
     if not ctx:
-        raise HTTPException(
-            status_code=404,
-            detail="Contexto PCP não encontrado"
-        )
+        raise HTTPException(status_code=404, detail="Contexto PCP não encontrado")
 
     return ctx.payload
 
 
-# 🔹 POST — SALVA RESULTADO DO AGENTE PCP
-@router.post("/result")
-def save_result(
-    data: dict,
+# 🔹 POST — EXECUTA O AGENTE PCP
+@router.post("/run")
+def run_pcp(
     company: Company = Depends(get_current_company),
     db: Session = Depends(get_db)
 ):
+    # 1️⃣ Busca último contexto
+    ctx = (
+        db.query(PCPContext)
+        .filter(PCPContext.company_id == company.id)
+        .order_by(PCPContext.created_at.desc())
+        .first()
+    )
+
+    if not ctx:
+        raise HTTPException(status_code=404, detail="Nenhum contexto PCP disponível")
+
+    payload = ctx.payload
+
+    estoque = payload.get("estoque", 0)
+    producao = payload.get("producao", 0)
+    demanda = payload.get("demanda", 0)
+
+    # 2️⃣ Regra simples de PCP (v1)
+    if estoque + producao >= demanda:
+        status = "ok"
+        sugestao = "Produção atende a demanda"
+        ajuste_producao = 0
+    else:
+        status = "ajuste_necessario"
+        ajuste_producao = demanda - (estoque + producao)
+        sugestao = f"Aumentar produção em {ajuste_producao} unidades"
+
+    result = {
+        "status": status,
+        "estoque": estoque,
+        "producao_atual": producao,
+        "demanda": demanda,
+        "ajuste_producao": ajuste_producao,
+        "sugestao": sugestao
+    }
+
+    # 3️⃣ Salva resultado
     save_pcp_result(
         db=db,
         company_id=company.id,
-        payload=data
+        payload=result
     )
 
-    return {"status": "OK"}
+    return result
