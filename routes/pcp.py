@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -41,7 +43,7 @@ def create_context(
     }
 
 
-# 🔹 GET — BUSCA ÚLTIMO CONTEXTO
+# 🔹 GET — BUSCA O ÚLTIMO CONTEXTO PCP
 @router.get("/context")
 def get_context(
     company: Company = Depends(get_current_company),
@@ -55,7 +57,10 @@ def get_context(
     )
 
     if not ctx:
-        raise HTTPException(status_code=404, detail="Contexto PCP não encontrado")
+        raise HTTPException(
+            status_code=404,
+            detail="Contexto PCP não encontrado"
+        )
 
     return ctx.payload
 
@@ -66,7 +71,7 @@ def run_pcp(
     company: Company = Depends(get_current_company),
     db: Session = Depends(get_db)
 ):
-    # 1️⃣ Busca último contexto
+    # 1️⃣ Busca o último contexto
     ctx = (
         db.query(PCPContext)
         .filter(PCPContext.company_id == company.id)
@@ -75,7 +80,10 @@ def run_pcp(
     )
 
     if not ctx:
-        raise HTTPException(status_code=404, detail="Nenhum contexto PCP disponível")
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum contexto PCP disponível"
+        )
 
     payload = ctx.payload
 
@@ -86,8 +94,8 @@ def run_pcp(
     # 2️⃣ Regra simples de PCP (v1)
     if estoque + producao >= demanda:
         status = "ok"
-        sugestao = "Produção atende a demanda"
         ajuste_producao = 0
+        sugestao = "Produção atende a demanda"
     else:
         status = "ajuste_necessario"
         ajuste_producao = demanda - (estoque + producao)
@@ -102,11 +110,24 @@ def run_pcp(
         "sugestao": sugestao
     }
 
-    # 3️⃣ Salva resultado
+    # 3️⃣ Prepara payload conforme contrato do service
+    run_id = str(uuid4())
+
+    payload_to_save = {
+        "run_id": run_id,
+        "agent_version": "pcp-v1",
+        "result": result
+    }
+
+    # 4️⃣ Salva resultado
     save_pcp_result(
-        db=db,
-        company_id=company.id,
-        payload=result
+        db,
+        company.id,
+        payload_to_save
     )
 
-    return result
+    # 5️⃣ Retorna resposta ao caller (n8n, etc)
+    return {
+        "run_id": run_id,
+        **result
+    }
